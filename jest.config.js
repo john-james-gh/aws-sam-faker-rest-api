@@ -12,4 +12,5 @@ export default {
   coverageDirectory: "coverage",
   // Indicates which provider should be used to instrument code for coverage
   coverageProvider: "v8",
+  globalSetup: "./jest.setup-env.js",
 }

@@ -19,6 +19,6 @@ export default defineConfig([
     plugins: { js },
     extends: ["js/recommended"],
   },
-  tseslint.configs.recommended,
+  tseslint.configs.recommendedTypeChecked,
   eslintConfigPrettier,
 ])

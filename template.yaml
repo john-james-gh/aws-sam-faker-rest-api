@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS SAM Template for Node.js TypeScript Lambda
+Description: AWS SAM Faker REST API
 
 Globals:
   Function:
@@ -8,16 +8,20 @@ Globals:
     Runtime: nodejs22.x
     Architectures:
       - x86_64
+    Environment:
+      Variables:
+        FAKER_TABLE: !Ref ProductsDynamoDbTable
+        LOCAL_DDB_ENDPOINT: ""
 
 Resources:
-  MyTemplateRestApi:
+  RestApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
       Auth:
         ApiKeyRequired: true
       AccessLogSetting:
-        DestinationArn: !GetAtt MyTemplateRestApiLogGroup.Arn
+        DestinationArn: !GetAtt RestApiLogGroup.Arn
         Format: "$context.requestId - $context.identity.sourceIp - $context.httpMethod $context.resourcePath - $context.status"
       MethodSettings:
         - ResourcePath: "/*"
@@ -25,51 +29,62 @@ Resources:
           LoggingLevel: INFO
           MetricsEnabled: true
 
-  MyTemplateRestApiLogGroup:
+  RestApiLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/apigateway/${MyTemplateRestApi}
+      LogGroupName: !Sub "/aws/apigateway/${RestApi}"
       RetentionInDays: 7
 
-  MyTemplateUsagePlan:
+  RestApiUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    DependsOn: MyTemplateRestApiProdStage
+    DependsOn: RestApiProdStage
     Properties:
       ApiStages:
-        - ApiId: !Ref MyTemplateRestApi
+        - ApiId: !Ref RestApi
           Stage: Prod
       Throttle:
         BurstLimit: 100
         RateLimit: 50
 
-  MyTemplateApiKey:
+  RestApiKey:
     Type: AWS::ApiGateway::ApiKey
     Properties:
       Enabled: true
 
-  MyUsagePlanKey:
+  RestUsagePlanKey:
     Type: AWS::ApiGateway::UsagePlanKey
     Properties:
-      KeyId: !Ref MyTemplateApiKey
+      KeyId: !Ref RestApiKey
       KeyType: API_KEY
-      UsagePlanId: !Ref MyTemplateUsagePlan
+      UsagePlanId: !Ref RestApiUsagePlan
 
-  MyTemplateGetAllFunction:
+  GetAllProductsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/get-all.handler
+      Handler: src/get-all-products.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductsDynamoDbTable
       Events:
         Api:
           Type: Api
           Properties:
-            RestApiId: !Ref MyTemplateRestApi
-            Path: /get-all
+            RestApiId: !Ref RestApi
+            Path: /products
             Method: GET
     Metadata:
       BuildMethod: esbuild
 
-  MyTemplateGetAllFunctionLogGroup:
+  GetAllProductsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${MyTemplateGetAllFunction}
+      LogGroupName: !Sub "/aws/lambda/${GetAllProductsFunction}"
       RetentionInDays: 7
+
+  ProductsDynamoDbTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      # TableName: aws-sam-faker-rest-api-ProductsDynamoDbTable-ABC123XYZ
+      PrimaryKey:
+        Name: id
+        Type: String

@@ -13,7 +13,7 @@ This repository contains a template for developing AWS Lambda functions using No
 - **Local invoke your function:**
 
   ```bash
-  sam local invoke MyTemplateGetAllFunction --event events/get-all-event.json
+  sam local invoke MyTemplateGetAllFunction --event events/get-all-event.json --env-vars env.json
   ```
 
 - **Remote invoke your function:**
@@ -25,7 +25,7 @@ This repository contains a template for developing AWS Lambda functions using No
 - **Start the local API Gateway:**
 
   ```bash
-  sam local start-api
+  sam local start-api --env-vars env.json
   ```
 
 - **Validate the SAM template:**
@@ -38,4 +38,27 @@ This repository contains a template for developing AWS Lambda functions using No
 
   ```bash
   sam deploy --guided
+  ```
+
+- **Run Local DynamoDB:**
+
+  ```bash
+  docker run -p 8000:8000 amazon/dynamodb-local
+  ```
+
+- **Create Local DynamoDB Table:**
+
+  ```bash
+  aws dynamodb create-table `
+    --table-name FakerRestApi-ProductsDynamoDbTable-1KL76QRAAUCEN `
+    --attribute-definitions AttributeName=id,AttributeType=S `
+    --key-schema AttributeName=id,KeyType=HASH `
+    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 `
+    --endpoint-url http://localhost:8000
+  ```
+
+- **Check Local DynamoDB Tables:**
+
+  ```bash
+  aws dynamodb list-tables --endpoint-url http://localhost:8000
   ```
