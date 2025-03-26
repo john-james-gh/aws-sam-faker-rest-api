@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM Template for Node.js TypeScript Lambda
+
+Globals:
+  Function:
+    Timeout: 3
+    Runtime: nodejs22.x
+    Architectures:
+      - x86_64
+
+Resources:
+  MyTemplateRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        ApiKeyRequired: true
+      AccessLogSetting:
+        DestinationArn: !GetAtt MyTemplateRestApiLogGroup.Arn
+        Format: "$context.requestId - $context.identity.sourceIp - $context.httpMethod $context.resourcePath - $context.status"
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          MetricsEnabled: true
+
+  MyTemplateRestApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${MyTemplateRestApi}
+      RetentionInDays: 7
+
+  MyTemplateUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: MyTemplateRestApiProdStage
+    Properties:
+      ApiStages:
+        - ApiId: !Ref MyTemplateRestApi
+          Stage: Prod
+      Throttle:
+        BurstLimit: 100
+        RateLimit: 50
+
+  MyTemplateApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Enabled: true
+
+  MyUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref MyTemplateApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref MyTemplateUsagePlan
+
+  MyTemplateGetAllFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/get-all.handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyTemplateRestApi
+            Path: /get-all
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+
+  MyTemplateGetAllFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${MyTemplateGetAllFunction}
+      RetentionInDays: 7
