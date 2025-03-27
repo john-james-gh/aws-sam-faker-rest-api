@@ -2,11 +2,10 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
 import {
   DynamoDBDocumentClient,
-  ScanCommand,
-  type ScanCommandInput,
+  QueryCommand,
+  type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb"
-import pino from "pino"
-import pinoPretty from "pino-pretty"
+import { logger } from "./utils/logger"
 
 const isLocal = Boolean(process.env.LOCAL_DDB_ENDPOINT)
 const client = new DynamoDBClient({
@@ -14,41 +13,22 @@ const client = new DynamoDBClient({
 })
 const ddbDocClient = DynamoDBDocumentClient.from(client)
 
-const logger = pino(
-  {
-    base: null,
-    timestamp: false,
-    formatters: {
-      level(label) {
-        return { level: label }
-      },
-    },
-  },
-  isLocal
-    ? pinoPretty({
-        colorize: true,
-        translateTime: "HH:MM:ss",
-        ignore: "pid,hostname",
-      })
-    : undefined,
-)
-
 export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
   const tableName = process.env.FAKER_TABLE
+  const ddbEndpoint = process.env.LOCAL_DDB_ENDPOINT
 
   logger.info(
     {
-      tableName: process.env.FAKER_TABLE,
-      ddbEndpoint: process.env.LOCAL_DDB_ENDPOINT,
+      tableName,
+      ddbEndpoint,
     },
     "Configuration",
   )
 
   if (!tableName) {
     logger.error("Missing FAKER_TABLE environment variable")
-
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
@@ -57,10 +37,7 @@ export const handler = async (
   }
 
   if (event.httpMethod !== "GET") {
-    logger.error(
-      { httpMethod: event.httpMethod, path: event.path },
-      "Invalid method",
-    )
+    logger.error("Invalid method")
 
     return {
       statusCode: 405,
@@ -71,61 +48,74 @@ export const handler = async (
     }
   }
 
-  logger.info(
-    {
-      path: event.path,
-      httpMethod: event.httpMethod,
-      headers: event.headers,
-      query: event.queryStringParameters,
-    },
-    "Received event",
-  )
+  const queryParams = event.queryStringParameters || {}
+  const limit = queryParams.limit ? parseInt(queryParams.limit) : 10
+  const pk = queryParams.pk
+  const useGSI = !pk
 
-  const params: ScanCommandInput = { TableName: tableName }
-  let items: Record<string, unknown>[] = []
+  let exclusiveStartKey
+  if (queryParams.nextToken) {
+    try {
+      exclusiveStartKey = JSON.parse(
+        Buffer.from(queryParams.nextToken, "base64").toString("utf-8"),
+      )
+      logger.info("Parsed nextToken")
+    } catch {
+      logger.warn("Invalid nextToken format")
+    }
+  }
+
+  const params: QueryCommandInput = {
+    TableName: tableName,
+    IndexName: useGSI ? "GSI_AllProducts" : undefined,
+    KeyConditionExpression: useGSI ? "#gsi_pk = :gsi_pk" : "#pk = :pk",
+    ExpressionAttributeNames: useGSI
+      ? { "#gsi_pk": "gsi_pk" }
+      : { "#pk": "pk" },
+    ExpressionAttributeValues: useGSI ? { ":gsi_pk": "all" } : { ":pk": pk },
+    Limit: limit,
+    ExclusiveStartKey: exclusiveStartKey,
+  }
 
   try {
-    const data = await ddbDocClient.send(new ScanCommand(params))
-    items = data.Items || []
+    const data = await ddbDocClient.send(new QueryCommand(params))
+
+    const items = data.Items || []
+    const nextToken = data.LastEvaluatedKey
+      ? Buffer.from(JSON.stringify(data.LastEvaluatedKey)).toString("base64")
+      : null
 
     logger.info(
       {
-        count: data.Count,
-        scannedCount: data.ScannedCount,
-        lastEvaluatedKey: data.LastEvaluatedKey,
-        consumedCapacity: data.ConsumedCapacity,
+        itemCount: items.length,
+        from: useGSI ? "GSI_AllProducts" : pk,
+        nextTokenPresent: !!nextToken,
       },
-      "ScanCommand metadata",
+      "DynamoDB query response",
     )
+
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items,
+        nextToken,
+      }),
+    }
   } catch (err) {
     logger.error(
       {
-        httpMethod: event.httpMethod,
-        path: event.path,
         message: err instanceof Error ? err.message : String(err),
       },
-      "Database query error",
+      "DynamoDB query error",
     )
 
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: "Internal Server Error",
+        message: "Internal server error",
       }),
     }
   }
-
-  const response = {
-    statusCode: 200,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(items),
-  }
-
-  logger.info(
-    { path: event.path, statusCode: response.statusCode, body: items },
-    "Sending response",
-  )
-
-  return response
 }

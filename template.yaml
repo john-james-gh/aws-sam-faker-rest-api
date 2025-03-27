@@ -81,10 +81,52 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${GetAllProductsFunction}"
       RetentionInDays: 7
 
-  ProductsDynamoDbTable:
-    Type: AWS::Serverless::SimpleTable
+  CreateProductFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      # TableName: aws-sam-faker-rest-api-ProductsDynamoDbTable-ABC123XYZ
-      PrimaryKey:
-        Name: id
-        Type: String
+      Handler: src/create-product.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductsDynamoDbTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /products
+            Method: POST
+    Metadata:
+      BuildMethod: esbuild
+
+  CreateProductFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CreateProductFunction}"
+      RetentionInDays: 7
+
+  ProductsDynamoDbTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: FakerRestApi-ProductsDynamoDbTable-1KL76QRAAUCEN
+      BillingMode: PAYPERREQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gsi_pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI_AllProducts
+          KeySchema:
+            - AttributeName: gsi_pk
+              KeyType: HASH
+            - AttributeName: sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL

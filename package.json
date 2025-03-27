@@ -4,7 +4,8 @@
   "scripts": {
     "type-check": "tsc",
     "lint": "eslint . --fix",
-    "test": "jest",
+    "test": "jest --coverage",
+    "test-watch": "jest --watch",
     "format": "prettier --write ."
   },
   "devDependencies": {

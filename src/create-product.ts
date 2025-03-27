@@ -6,33 +6,13 @@ import {
   type PutCommandInput,
 } from "@aws-sdk/lib-dynamodb"
 import { randomUUID } from "crypto"
-import pino from "pino"
-import pinoPretty from "pino-pretty"
+import { logger } from "./utils/logger"
 
 const isLocal = Boolean(process.env.LOCAL_DDB_ENDPOINT)
 const client = new DynamoDBClient({
   endpoint: isLocal ? process.env.LOCAL_DDB_ENDPOINT : undefined,
 })
 const ddbDocClient = DynamoDBDocumentClient.from(client)
-
-const logger = pino(
-  {
-    base: null,
-    timestamp: false,
-    formatters: {
-      level(label) {
-        return { level: label }
-      },
-    },
-  },
-  isLocal
-    ? pinoPretty({
-        colorize: true,
-        translateTime: "HH:MM:ss",
-        ignore: "pid,hostname",
-      })
-    : undefined,
-)
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -58,10 +38,7 @@ export const handler = async (
   }
 
   if (event.httpMethod !== "POST") {
-    logger.error(
-      { httpMethod: event.httpMethod, path: event.path },
-      "Invalid method",
-    )
+    logger.error("Invalid method")
 
     return {
       statusCode: 405,
@@ -69,6 +46,16 @@ export const handler = async (
       body: JSON.stringify({
         message: "Method Not Allowed. Only POST is supported.",
       }),
+    }
+  }
+
+  if (!event.body) {
+    logger.error("Missing request body")
+
+    return {
+      statusCode: 400,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Missing request body" }),
     }
   }
 
@@ -82,26 +69,17 @@ export const handler = async (
     "Received event",
   )
 
-  if (!event.body) {
-    logger.error(
-      { httpMethod: event.httpMethod, path: event.path },
-      "Missing request body",
-    )
-
-    return {
-      statusCode: 400,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Missing request body" }),
-    }
-  }
-
-  let item: Record<string, unknown>
+  let parsedBody: Record<string, unknown>
   try {
-    item = JSON.parse(event.body)
+    parsedBody = JSON.parse(event.body)
+    logger.info("Parsed JSON body")
   } catch (err) {
     logger.error(
-      { message: err instanceof Error ? err.message : String(err) },
-      "Invalid JSON",
+      {
+        body: event.body,
+        message: err instanceof Error ? err.message : String(err),
+      },
+      "Invalid JSON body",
     )
 
     return {
@@ -113,52 +91,51 @@ export const handler = async (
 
   const id = randomUUID()
   const now = new Date().toISOString()
-  const newItem: Record<string, unknown> = {
+
+  const category = parsedBody.category as string
+  if (!category) {
+    logger.error("Missing required field: category")
+
+    return {
+      statusCode: 400,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Missing required field: category" }),
+    }
+  }
+
+  const item = {
+    pk: `category#${category}`,
+    sk: `product#${id}`,
+    gsi_pk: "all",
     id,
     createdAt: now,
-    ...item,
+    ...parsedBody,
   }
 
   const params: PutCommandInput = {
     TableName: tableName,
-    Item: newItem,
+    Item: item,
   }
 
   try {
-    const data = await ddbDocClient.send(new PutCommand(params))
-    const { Attributes, ...metadata } = data
-    logger.info({ item: Attributes }, "Item created")
-    logger.info(metadata, "PutCommand metadata")
+    await ddbDocClient.send(new PutCommand(params))
+    logger.info({ item }, "DynamoDB put response")
+
+    return {
+      statusCode: 201,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item),
+    }
   } catch (err) {
     logger.error(
-      {
-        message: err instanceof Error ? err.message : String(err),
-        item: newItem,
-      },
+      { body: item, message: err instanceof Error ? err.message : String(err) },
       "DynamoDB put error",
     )
 
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Internal Server Error" }),
+      body: JSON.stringify({ message: "Internal server error" }),
     }
   }
-
-  const response = {
-    statusCode: 201,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newItem),
-  }
-
-  logger.info(
-    {
-      path: event.path,
-      statusCode: response.statusCode,
-      body: newItem,
-    },
-    "Sending response",
-  )
-
-  return response
 }

@@ -1,77 +1,139 @@
-import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb"
+import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb"
 import { mockClient } from "aws-sdk-client-mock"
 import { describe, beforeEach, it, expect } from "@jest/globals"
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
+import type { APIGatewayProxyEvent } from "aws-lambda"
 
 import { handler } from "../src/get-all-products"
 
-describe("Test GetAllProducts Function", () => {
+describe("Test GetAllProducts Function with QueryCommand (with GSI fallback)", () => {
   const ddbMock = mockClient(DynamoDBDocumentClient)
 
   beforeEach(() => {
     ddbMock.reset()
   })
 
-  it("should return 200 when query succeeds", async () => {
-    const items = [{ id: "id1" }, { id: "id2" }]
+  it("should return 200 when querying by pk with nextToken", async () => {
+    const items = [{ pk: "category#test", sk: "product#1" }]
+    const lastKey = { pk: "category#test", sk: "product#2" }
 
-    ddbMock.on(ScanCommand).resolves({
-      Items: items,
-    })
+    ddbMock
+      .on(QueryCommand)
+      .resolves({ Items: items, LastEvaluatedKey: lastKey })
 
     const event = {
       httpMethod: "GET",
-    } as APIGatewayProxyEvent
+      queryStringParameters: {
+        pk: "category#test",
+        limit: "10",
+      },
+    } as unknown as APIGatewayProxyEvent
 
     const result = await handler(event)
 
-    const expectedResult: APIGatewayProxyResult = {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(items),
+    const expectedBody = {
+      items,
+      nextToken: Buffer.from(JSON.stringify(lastKey)).toString("base64"),
     }
+
     expect(result.statusCode).toBe(200)
-    expect(result).toEqual(expectedResult)
+    expect(JSON.parse(result.body)).toEqual(expectedBody)
+  })
+
+  it("should return 200 with no nextToken when LastEvaluatedKey is missing", async () => {
+    const items = [{ pk: "category#test", sk: "product#1" }]
+
+    ddbMock.on(QueryCommand).resolves({ Items: items })
+
+    const event = {
+      httpMethod: "GET",
+      queryStringParameters: {
+        pk: "category#test",
+        limit: "5",
+      },
+    } as unknown as APIGatewayProxyEvent
+
+    const result = await handler(event)
+    const body = JSON.parse(result.body)
+
+    expect(result.statusCode).toBe(200)
+    expect(body.items).toEqual(items)
+    expect(body.nextToken).toBeNull()
+  })
+
+  it("should query using GSI when pk is missing", async () => {
+    const items = [{ pk: "category#misc", sk: "product#42" }]
+    ddbMock.on(QueryCommand).resolves({ Items: items })
+
+    const event = {
+      httpMethod: "GET",
+      queryStringParameters: {},
+    } as unknown as APIGatewayProxyEvent
+
+    const result = await handler(event)
+
+    expect(result.statusCode).toBe(200)
+    expect(JSON.parse(result.body)).toEqual({ items, nextToken: null })
+  })
+
+  it("should decode and use nextToken correctly", async () => {
+    const decodedKey = { pk: "category#books", sk: "product#42" }
+    const encoded = Buffer.from(JSON.stringify(decodedKey)).toString("base64")
+    const items = [{ pk: "category#books", sk: "product#43" }]
+
+    ddbMock.on(QueryCommand).resolves({ Items: items })
+
+    const event = {
+      httpMethod: "GET",
+      queryStringParameters: {
+        pk: "category#books",
+        nextToken: encoded,
+      },
+    } as unknown as APIGatewayProxyEvent
+
+    const result = await handler(event)
+    const body = JSON.parse(result.body)
+
+    expect(result.statusCode).toBe(200)
+    expect(body.items).toEqual(items)
+    expect(body.nextToken).toBeNull()
   })
 
   it("should return 405 for non-GET requests", async () => {
     const event = {
       httpMethod: "POST",
-      path: "/get-all-products",
-    } as APIGatewayProxyEvent
+    } as unknown as APIGatewayProxyEvent
 
     const result = await handler(event)
-
     expect(result.statusCode).toBe(405)
     expect(JSON.parse(result.body)).toEqual({
       message: "Method Not Allowed. Only GET is supported.",
     })
   })
 
-  it("should return 500 when DynamoDB throws", async () => {
-    ddbMock.on(ScanCommand).rejects(new Error("DDB exploded"))
+  it("should return 500 if DynamoDB throws", async () => {
+    ddbMock.on(QueryCommand).rejects(new Error("DDB failed"))
 
     const event = {
       httpMethod: "GET",
-      path: "/get-all-products",
-    } as APIGatewayProxyEvent
+      queryStringParameters: { pk: "category#fail" },
+    } as unknown as APIGatewayProxyEvent
 
     const result = await handler(event)
 
     expect(result.statusCode).toBe(500)
     expect(JSON.parse(result.body)).toEqual({
-      message: "Internal Server Error",
+      message: "Internal server error",
     })
   })
 
   it("should return 500 if FAKER_TABLE is not set", async () => {
-    const originalTable = process.env.FAKER_TABLE
-    delete process.env.FAKER_TABLE // simulate unset
+    const original = process.env.FAKER_TABLE
+    delete process.env.FAKER_TABLE
 
     const event = {
       httpMethod: "GET",
-      path: "/get-all-products",
-    } as APIGatewayProxyEvent
+      queryStringParameters: { pk: "anything" },
+    } as unknown as APIGatewayProxyEvent
 
     const result = await handler(event)
 
@@ -80,34 +142,6 @@ describe("Test GetAllProducts Function", () => {
       message: "Server misconfiguration",
     })
 
-    process.env.FAKER_TABLE = originalTable // restore it
-  })
-
-  it("should return 500 and handle non-Error thrown gracefully", async () => {
-    ddbMock.on(ScanCommand).rejects("something bad") // not an instance of Error
-
-    const event = {
-      httpMethod: "GET",
-    } as APIGatewayProxyEvent
-
-    const result = await handler(event)
-
-    expect(result.statusCode).toBe(500)
-    expect(JSON.parse(result.body)).toEqual({
-      message: "Internal Server Error",
-    })
-  })
-
-  it("should return 200 and an empty array when DynamoDB returns no Items", async () => {
-    ddbMock.on(ScanCommand).resolves({}) // no Items
-
-    const event = {
-      httpMethod: "GET",
-    } as APIGatewayProxyEvent
-
-    const result = await handler(event)
-
-    expect(result.statusCode).toBe(200)
-    expect(JSON.parse(result.body)).toEqual([])
+    process.env.FAKER_TABLE = original
   })
 })

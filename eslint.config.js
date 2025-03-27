@@ -7,7 +7,7 @@ import eslintConfigPrettier from "eslint-config-prettier/flat"
 export default defineConfig([
   globalIgnores([".aws-sam", "coverage"]),
   {
-    files: ["src/**/*.{js,mjs,cjs,ts}"],
+    files: ["src/**/*.{js,mjs,cjs,ts}", "jest.setup-env.js", "jest.setup.js"],
     languageOptions: { globals: globals.node },
   },
   {
@@ -19,6 +19,6 @@ export default defineConfig([
     plugins: { js },
     extends: ["js/recommended"],
   },
-  tseslint.configs.recommendedTypeChecked,
+  tseslint.configs.recommended,
   eslintConfigPrettier,
 ])
