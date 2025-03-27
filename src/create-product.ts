@@ -119,7 +119,13 @@ export const handler = async (
 
   try {
     await ddbDocClient.send(new PutCommand(params))
-    logger.info({ item }, "DynamoDB put response")
+    logger.info(
+      {
+        statusCode: 201,
+        body: item,
+      },
+      "DynamoDB put response",
+    )
 
     return {
       statusCode: 201,
@@ -128,7 +134,11 @@ export const handler = async (
     }
   } catch (err) {
     logger.error(
-      { body: item, message: err instanceof Error ? err.message : String(err) },
+      {
+        statusCode: 500,
+        body: item,
+        message: err instanceof Error ? err.message : String(err),
+      },
       "DynamoDB put error",
     )
 

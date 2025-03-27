@@ -87,6 +87,7 @@ export const handler = async (
 
     logger.info(
       {
+        statusCode: 200,
         itemCount: items.length,
         from: useGSI ? "GSI_AllProducts" : pk,
         nextTokenPresent: !!nextToken,
@@ -105,6 +106,7 @@ export const handler = async (
   } catch (err) {
     logger.error(
       {
+        statusCode: 500,
         message: err instanceof Error ? err.message : String(err),
       },
       "DynamoDB query error",
