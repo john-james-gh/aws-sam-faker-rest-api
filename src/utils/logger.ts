@@ -21,3 +21,7 @@ export const logger = pino(
       })
     : undefined,
 )
+
+if (process.env.NODE_ENV === "test") {
+  logger.level = "silent"
+}
