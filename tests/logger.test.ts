@@ -40,15 +40,14 @@ describe("Logger Configuration", () => {
 
     // Re-import logger now that env is set
     const prettySpy = require("pino-pretty")
-    const { logger: localLogger } = require("../src/utils/logger")
+    const { logger } = require("../src/utils/logger")
 
     expect(prettySpy).toHaveBeenCalledWith({
       colorize: true,
       translateTime: "HH:MM:ss",
       ignore: "pid,hostname",
     })
-
-    expect(localLogger).toBeDefined()
+    expect(logger).toBeDefined()
   })
 
   it("should not use pino-pretty when LOCAL_DDB_ENDPOINT is not set", () => {
@@ -59,8 +58,9 @@ describe("Logger Configuration", () => {
     // 3. Re-evaluate the module after `jest.resetModules()` to get a fresh instance.
     // `import` is static and hoisted, so it would run before these changes take effect.
     const prettySpy = require("pino-pretty")
-    require("../src/utils/logger")
+    const { logger } = require("../src/utils/logger")
 
     expect(prettySpy).not.toHaveBeenCalled()
+    expect(logger).toBeDefined()
   })
 })
