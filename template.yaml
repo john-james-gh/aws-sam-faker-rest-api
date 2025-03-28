@@ -32,7 +32,7 @@ Resources:
   RestApiLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/apigateway/${RestApi}"
+      LogGroupName: !Sub "/aws/apigateway/FakerRestApi-${RestApi}"
       RetentionInDays: 7
 
   RestApiUsagePlan:
@@ -75,12 +75,6 @@ Resources:
     Metadata:
       BuildMethod: esbuild
 
-  GetAllProductsFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${GetAllProductsFunction}"
-      RetentionInDays: 7
-
   CreateProductFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -98,17 +92,11 @@ Resources:
     Metadata:
       BuildMethod: esbuild
 
-  CreateProductFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/lambda/${CreateProductFunction}"
-      RetentionInDays: 7
-
   ProductsDynamoDbTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: FakerRestApi-ProductsDynamoDbTable-1KL76QRAAUCEN
-      BillingMode: PAYPERREQUEST
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: pk
           AttributeType: S
