@@ -50,7 +50,7 @@ This repository contains a template for developing AWS Lambda functions using No
 
   ```bash
   aws dynamodb create-table `
-  --table-name FakerRestApi-ProductsDynamoDbTable-1KL76QRAAUCEN `
+  --table-name FakerRestApi-ProductsDynamoDbTable-1KL76QRAUCEN `
   --attribute-definitions `
     AttributeName=pk,AttributeType=S `
     AttributeName=sk,AttributeType=S `
@@ -66,7 +66,7 @@ This repository contains a template for developing AWS Lambda functions using No
 
   ```bash
   aws dynamodb create-table `
-  --table-name FakerRestApi-ProductsDynamoDbTable-1KL76QRAAUCEN `
+  --table-name FakerRestApi-ProductsDynamoDbTable-1KL76QRAUCEN `
   --attribute-definitions `
     AttributeName=pk,AttributeType=S `
     AttributeName=sk,AttributeType=S `

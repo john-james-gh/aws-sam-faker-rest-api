@@ -112,7 +112,7 @@ Resources:
   ProductsDynamoDbTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: FakerRestApi-ProductsDynamoDbTable-1KL76QRAAUCEN
+      TableName: FakerRestApi-ProductsDynamoDbTable-1KL76QRAUCEN
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: pk

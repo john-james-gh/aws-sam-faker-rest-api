@@ -53,7 +53,7 @@ export const handler = async (
   } catch (err) {
     logger.error(
       {
-        message: err instanceof Error ? err.message : String(err),
+        error: err instanceof Error ? err.message : String(err),
       },
       "Invalid JSON body",
     )
@@ -91,7 +91,7 @@ export const handler = async (
   } catch (err) {
     logger.error(
       {
-        message: err instanceof Error ? err.message : String(err),
+        error: err instanceof Error ? err.message : String(err),
       },
       "DynamoDB PutCommand error",
     )
