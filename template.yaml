@@ -70,7 +70,7 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref RestApi
-            Path: /products
+            Path: /products/all
             Method: GET
     Metadata:
       BuildMethod: esbuild
@@ -87,8 +87,25 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref RestApi
-            Path: /products
+            Path: /products/create
             Method: POST
+    Metadata:
+      BuildMethod: esbuild
+
+  GetProductByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/get-product-by-id.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductsDynamoDbTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /products/by-id
+            Method: GET
     Metadata:
       BuildMethod: esbuild
 

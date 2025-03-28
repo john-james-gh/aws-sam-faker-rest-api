@@ -37,17 +37,6 @@ export const handler = async (
     }
   }
 
-  if (event.httpMethod !== "POST") {
-    logger.error("Invalid method")
-    return {
-      statusCode: 405,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: "Method Not Allowed. Only POST is supported.",
-      }),
-    }
-  }
-
   if (!event.body) {
     logger.error("Missing request body")
     return {
@@ -91,8 +80,7 @@ export const handler = async (
 
   const item = {
     pk: "product",
-    sk: `${now}#${id}`,
-    id,
+    sk: id, // 🟢 updated: SK is now just the UUID
     createdAt: now,
     ...parsedBody,
   }
@@ -110,7 +98,7 @@ export const handler = async (
         statusCode: 201,
         itemId: id,
       },
-      "DynamoDB put response",
+      "DynamoDB PutCommand success",
     )
     return {
       statusCode: 201,
@@ -124,7 +112,7 @@ export const handler = async (
         body: item,
         message: err instanceof Error ? err.message : String(err),
       },
-      "DynamoDB put error",
+      "DynamoDB PutCommand error",
     )
     return {
       statusCode: 500,

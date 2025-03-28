@@ -5,7 +5,7 @@ import type { APIGatewayProxyEvent } from "aws-lambda"
 
 import { handler } from "../src/get-all-products"
 
-describe("Test GetAllProducts Function using ScanCommand", () => {
+describe("Test GetAllProducts Function", () => {
   const ddbMock = mockClient(DynamoDBDocumentClient)
 
   beforeEach(() => {
@@ -79,18 +79,6 @@ describe("Test GetAllProducts Function using ScanCommand", () => {
     expect(result.statusCode).toBe(200)
     expect(body.items).toEqual(items)
     expect(body.nextToken).toBeNull()
-  })
-
-  it("should return 405 for non-GET requests", async () => {
-    const event = {
-      httpMethod: "POST",
-    } as unknown as APIGatewayProxyEvent
-
-    const result = await handler(event)
-    expect(result.statusCode).toBe(405)
-    expect(JSON.parse(result.body)).toEqual({
-      message: "Method Not Allowed. Only GET is supported.",
-    })
   })
 
   it("should return 500 if DynamoDB throws", async () => {

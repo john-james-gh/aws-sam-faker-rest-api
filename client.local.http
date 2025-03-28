@@ -1,5 +1,5 @@
-### 🧪 Create product
-POST http://localhost:3000/products
+### ✅ Create product
+POST http://localhost:3000/products/create
 Content-Type: application/json
 x-api-key: your-api-key
 
@@ -11,34 +11,36 @@ x-api-key: your-api-key
 }
 
 ### ❌ Create product (invalid JSON)
-POST http://localhost:3000/products
+POST http://localhost:3000/products/create
 Content-Type: application/json
 x-api-key: your-api-key
 
 {notValidJson: true
 
 ### ❌ Create product (missing body)
-POST http://localhost:3000/products
+POST http://localhost:3000/products/create
 x-api-key: your-api-key
-
-### ❌ Wrong method
-PATCH http://localhost:3000/products
-Content-Type: application/json
-x-api-key: your-api-key
-
-{
-  "name": "Oops",
-  "price": 0
-}
 
 ### ✅ Get products (default scan)
-GET http://localhost:3000/products
+GET http://localhost:3000/products/all
 x-api-key: your-api-key
 
 ### ✅ Get products with limit
-GET http://localhost:3000/products?limit=1
+GET http://localhost:3000/products/all?limit=1
 x-api-key: your-api-key
 
 ### ✅ Get products with nextToken (copy from response and paste here)
-GET http://localhost:3000/products?limit=1&nextToken=eyJzayI6IjIwMjUtMDMtMjhUMDE6NTY6NTMuMjA0WiMyMTdmNzZiMS0yZjVjLTQyNDItYjFmNi03NjhjOTlhOTZkMTciLCJwayI6InByb2R1Y3QifQ==
+GET http://localhost:3000/products/all?limit=1&nextToken=eyJzayI6IjIwMjUtMDMtMjhUMDE6NTY6NTMuMjA0WiMyMTdmNzZiMS0yZjVjLTQyNDItYjFmNi03NjhjOTlhOTZkMTciLCJwayI6InByb2R1Y3QifQ==
+x-api-key: your-api-key
+
+### ✅ Get product by id
+GET http://localhost:3000/products/by-id?id=c6c6487d-ca46-4c49-b7cd-7e08d7b3b771
+x-api-key: your-api-key
+
+### ❌ Get product by id (missing query parameter)
+GET http://localhost:3000/products/by-id
+x-api-key: your-api-key
+
+### ❌ Get product by id (nonexistent id)
+GET http://localhost:3000/products/by-id?id=does-not-exist
 x-api-key: your-api-key

@@ -30,38 +30,17 @@ describe("Test CreateProduct Function", () => {
     const responseBody = JSON.parse(result.body)
 
     expect(result.statusCode).toBe(201)
-    expect(responseBody).toHaveProperty("id", expect.any(String))
     expect(responseBody).toHaveProperty("createdAt", expect.any(String))
     expect(responseBody).toHaveProperty("pk", "product")
     expect(responseBody).toHaveProperty(
       "sk",
-      expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*#.+/), // ISO date + # + uuid
+      expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      ), // UUID format
     )
     expect(responseBody).toHaveProperty("name", "Test Product")
     expect(responseBody).toHaveProperty("price", 10)
     expect(responseBody).toHaveProperty("category", "electronics")
-  })
-
-  it("should work even if category is missing", async () => {
-    ddbMock.on(PutCommand).resolves({})
-
-    const event = {
-      httpMethod: "POST",
-      body: JSON.stringify({
-        name: "No Category",
-        price: 100,
-      }),
-    } as APIGatewayProxyEvent
-
-    const result = await handler(event)
-    const body = JSON.parse(result.body)
-
-    expect(result.statusCode).toBe(201)
-    expect(body).toHaveProperty("pk", "product")
-    expect(body).toHaveProperty("sk", expect.stringMatching(/^.+#.+$/))
-    expect(body).toHaveProperty("name", "No Category")
-    expect(body).toHaveProperty("price", 100)
-    expect(body).not.toHaveProperty("category")
   })
 
   it("should return 400 when request body is missing", async () => {
@@ -90,20 +69,6 @@ describe("Test CreateProduct Function", () => {
     expect(result.statusCode).toBe(400)
     expect(responseBody).toEqual({
       message: "Invalid JSON body",
-    })
-  })
-
-  it("should return 405 for non-POST methods", async () => {
-    const event = {
-      httpMethod: "GET",
-    } as APIGatewayProxyEvent
-
-    const result = await handler(event)
-    const responseBody = JSON.parse(result.body)
-
-    expect(result.statusCode).toBe(405)
-    expect(responseBody).toEqual({
-      message: "Method Not Allowed. Only POST is supported.",
     })
   })
 

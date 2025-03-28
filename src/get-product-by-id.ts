@@ -2,8 +2,8 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
 import {
   DynamoDBDocumentClient,
-  ScanCommand,
-  type ScanCommandInput,
+  GetCommand,
+  type GetCommandInput,
 } from "@aws-sdk/lib-dynamodb"
 import { logger } from "./utils/logger"
 
@@ -37,49 +37,42 @@ export const handler = async (
   }
 
   const queryParams = event.queryStringParameters || {}
-  const limit = queryParams.limit ? parseInt(queryParams.limit) : 10
+  const productId = queryParams.id
 
-  let exclusiveStartKey
-  if (queryParams.nextToken) {
-    try {
-      exclusiveStartKey = JSON.parse(
-        Buffer.from(queryParams.nextToken, "base64").toString("utf-8"),
-      )
-      logger.info("Parsed nextToken")
-    } catch {
-      logger.warn("Invalid nextToken format")
+  if (!productId) {
+    logger.error("Missing query parameter: id")
+    return {
+      statusCode: 400,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Missing required query param: id" }),
     }
   }
 
-  const params: ScanCommandInput = {
+  const params: GetCommandInput = {
     TableName: tableName,
-    Limit: limit,
-    ExclusiveStartKey: exclusiveStartKey,
+    Key: {
+      pk: "product",
+      sk: productId,
+    },
   }
 
   try {
-    const data = await ddbDocClient.send(new ScanCommand(params))
+    const data = await ddbDocClient.send(new GetCommand(params))
 
-    const items = data.Items || []
-    const nextToken = data.LastEvaluatedKey
-      ? Buffer.from(JSON.stringify(data.LastEvaluatedKey)).toString("base64")
-      : null
+    if (!data.Item) {
+      logger.warn(`Product not found for sk: ${productId}`)
+      return {
+        statusCode: 404,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Product not found" }),
+      }
+    }
 
-    logger.info(
-      {
-        statusCode: 200,
-        itemCount: items.length,
-        nextTokenPresent: Boolean(nextToken),
-      },
-      "DynamoDB ScanCommand success",
-    )
+    logger.info({ product: data.Item }, "DynamoDB GetCommand success")
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items,
-        nextToken,
-      }),
+      body: JSON.stringify({ product: data.Item }),
     }
   } catch (err) {
     logger.error(
@@ -87,7 +80,7 @@ export const handler = async (
         statusCode: 500,
         message: err instanceof Error ? err.message : String(err),
       },
-      "DynamoDB ScanCommand error",
+      "DynamoDB GetCommand error",
     )
     return {
       statusCode: 500,
