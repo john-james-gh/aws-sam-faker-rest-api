@@ -1,29 +1,29 @@
-import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb"
+import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb"
 import { mockClient } from "aws-sdk-client-mock"
 import { describe, beforeEach, it, expect } from "@jest/globals"
 import type { APIGatewayProxyEvent } from "aws-lambda"
 
 import { handler } from "../src/get-all-products"
 
-describe("Test GetAllProducts Function with QueryCommand (with GSI fallback)", () => {
+describe("Test GetAllProducts Function using ScanCommand", () => {
   const ddbMock = mockClient(DynamoDBDocumentClient)
 
   beforeEach(() => {
     ddbMock.reset()
+    process.env.FAKER_TABLE = "TestTable"
   })
 
-  it("should return 200 when querying by pk with nextToken", async () => {
+  it("should return 200 with items and nextToken", async () => {
     const items = [{ pk: "category#test", sk: "product#1" }]
     const lastKey = { pk: "category#test", sk: "product#2" }
 
     ddbMock
-      .on(QueryCommand)
+      .on(ScanCommand)
       .resolves({ Items: items, LastEvaluatedKey: lastKey })
 
     const event = {
       httpMethod: "GET",
       queryStringParameters: {
-        pk: "category#test",
         limit: "10",
       },
     } as unknown as APIGatewayProxyEvent
@@ -42,12 +42,11 @@ describe("Test GetAllProducts Function with QueryCommand (with GSI fallback)", (
   it("should return 200 with no nextToken when LastEvaluatedKey is missing", async () => {
     const items = [{ pk: "category#test", sk: "product#1" }]
 
-    ddbMock.on(QueryCommand).resolves({ Items: items })
+    ddbMock.on(ScanCommand).resolves({ Items: items })
 
     const event = {
       httpMethod: "GET",
       queryStringParameters: {
-        pk: "category#test",
         limit: "5",
       },
     } as unknown as APIGatewayProxyEvent
@@ -60,32 +59,16 @@ describe("Test GetAllProducts Function with QueryCommand (with GSI fallback)", (
     expect(body.nextToken).toBeNull()
   })
 
-  it("should query using GSI when pk is missing", async () => {
-    const items = [{ pk: "category#misc", sk: "product#42" }]
-    ddbMock.on(QueryCommand).resolves({ Items: items })
-
-    const event = {
-      httpMethod: "GET",
-      queryStringParameters: {},
-    } as unknown as APIGatewayProxyEvent
-
-    const result = await handler(event)
-
-    expect(result.statusCode).toBe(200)
-    expect(JSON.parse(result.body)).toEqual({ items, nextToken: null })
-  })
-
   it("should decode and use nextToken correctly", async () => {
     const decodedKey = { pk: "category#books", sk: "product#42" }
     const encoded = Buffer.from(JSON.stringify(decodedKey)).toString("base64")
     const items = [{ pk: "category#books", sk: "product#43" }]
 
-    ddbMock.on(QueryCommand).resolves({ Items: items })
+    ddbMock.on(ScanCommand).resolves({ Items: items })
 
     const event = {
       httpMethod: "GET",
       queryStringParameters: {
-        pk: "category#books",
         nextToken: encoded,
       },
     } as unknown as APIGatewayProxyEvent
@@ -111,11 +94,11 @@ describe("Test GetAllProducts Function with QueryCommand (with GSI fallback)", (
   })
 
   it("should return 500 if DynamoDB throws", async () => {
-    ddbMock.on(QueryCommand).rejects(new Error("DDB failed"))
+    ddbMock.on(ScanCommand).rejects(new Error("DDB failed"))
 
     const event = {
       httpMethod: "GET",
-      queryStringParameters: { pk: "category#fail" },
+      queryStringParameters: {},
     } as unknown as APIGatewayProxyEvent
 
     const result = await handler(event)
@@ -132,7 +115,7 @@ describe("Test GetAllProducts Function with QueryCommand (with GSI fallback)", (
 
     const event = {
       httpMethod: "GET",
-      queryStringParameters: { pk: "anything" },
+      queryStringParameters: {},
     } as unknown as APIGatewayProxyEvent
 
     const result = await handler(event)

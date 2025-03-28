@@ -2,8 +2,8 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
 import {
   DynamoDBDocumentClient,
-  QueryCommand,
-  type QueryCommandInput,
+  ScanCommand,
+  type ScanCommandInput,
 } from "@aws-sdk/lib-dynamodb"
 import { logger } from "./utils/logger"
 
@@ -38,7 +38,6 @@ export const handler = async (
 
   if (event.httpMethod !== "GET") {
     logger.error("Invalid method")
-
     return {
       statusCode: 405,
       headers: { "Content-Type": "application/json" },
@@ -50,8 +49,6 @@ export const handler = async (
 
   const queryParams = event.queryStringParameters || {}
   const limit = queryParams.limit ? parseInt(queryParams.limit) : 10
-  const pk = queryParams.pk
-  const useGSI = !pk
 
   let exclusiveStartKey
   if (queryParams.nextToken) {
@@ -65,20 +62,14 @@ export const handler = async (
     }
   }
 
-  const params: QueryCommandInput = {
+  const params: ScanCommandInput = {
     TableName: tableName,
-    IndexName: useGSI ? "GSI_AllProducts" : undefined,
-    KeyConditionExpression: useGSI ? "#gsi_pk = :gsi_pk" : "#pk = :pk",
-    ExpressionAttributeNames: useGSI
-      ? { "#gsi_pk": "gsi_pk" }
-      : { "#pk": "pk" },
-    ExpressionAttributeValues: useGSI ? { ":gsi_pk": "all" } : { ":pk": pk },
     Limit: limit,
     ExclusiveStartKey: exclusiveStartKey,
   }
 
   try {
-    const data = await ddbDocClient.send(new QueryCommand(params))
+    const data = await ddbDocClient.send(new ScanCommand(params))
 
     const items = data.Items || []
     const nextToken = data.LastEvaluatedKey
@@ -89,10 +80,9 @@ export const handler = async (
       {
         statusCode: 200,
         itemCount: items.length,
-        from: useGSI ? "GSI_AllProducts" : pk,
-        nextTokenPresent: !!nextToken,
+        nextTokenPresent: Boolean(nextToken),
       },
-      "DynamoDB query response",
+      "DynamoDB scan response",
     )
 
     return {
@@ -109,7 +99,7 @@ export const handler = async (
         statusCode: 500,
         message: err instanceof Error ? err.message : String(err),
       },
-      "DynamoDB query error",
+      "DynamoDB scan error",
     )
 
     return {

@@ -114,19 +114,8 @@ Resources:
           AttributeType: S
         - AttributeName: sk
           AttributeType: S
-        - AttributeName: gsi_pk
-          AttributeType: S
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
         - AttributeName: sk
           KeyType: RANGE
-      GlobalSecondaryIndexes:
-        - IndexName: GSI_AllProducts
-          KeySchema:
-            - AttributeName: gsi_pk
-              KeyType: HASH
-            - AttributeName: sk
-              KeyType: RANGE
-          Projection:
-            ProjectionType: ALL

@@ -29,7 +29,6 @@ export const handler = async (
 
   if (!tableName) {
     logger.error("Missing FAKER_TABLE environment variable")
-
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
@@ -39,7 +38,6 @@ export const handler = async (
 
   if (event.httpMethod !== "POST") {
     logger.error("Invalid method")
-
     return {
       statusCode: 405,
       headers: { "Content-Type": "application/json" },
@@ -51,7 +49,6 @@ export const handler = async (
 
   if (!event.body) {
     logger.error("Missing request body")
-
     return {
       statusCode: 400,
       headers: { "Content-Type": "application/json" },
@@ -92,21 +89,9 @@ export const handler = async (
   const id = randomUUID()
   const now = new Date().toISOString()
 
-  const category = parsedBody.category as string
-  if (!category) {
-    logger.error("Missing required field: category")
-
-    return {
-      statusCode: 400,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Missing required field: category" }),
-    }
-  }
-
   const item = {
-    pk: `category#${category}`,
-    sk: `product#${id}`,
-    gsi_pk: "all",
+    pk: "product",
+    sk: `${now}#${id}`,
     id,
     createdAt: now,
     ...parsedBody,
@@ -119,10 +104,11 @@ export const handler = async (
 
   try {
     await ddbDocClient.send(new PutCommand(params))
+
     logger.info(
       {
         statusCode: 201,
-        body: item,
+        itemId: id,
       },
       "DynamoDB put response",
     )

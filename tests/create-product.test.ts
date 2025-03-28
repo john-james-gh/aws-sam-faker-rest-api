@@ -10,6 +10,7 @@ describe("Test CreateProduct Function", () => {
 
   beforeEach(() => {
     ddbMock.reset()
+    process.env.FAKER_TABLE = "TestTable"
   })
 
   it("should return 201 when item is successfully created", async () => {
@@ -31,34 +32,36 @@ describe("Test CreateProduct Function", () => {
     expect(result.statusCode).toBe(201)
     expect(responseBody).toHaveProperty("id", expect.any(String))
     expect(responseBody).toHaveProperty("createdAt", expect.any(String))
-    expect(responseBody).toHaveProperty("pk", "category#electronics")
+    expect(responseBody).toHaveProperty("pk", "product")
     expect(responseBody).toHaveProperty(
       "sk",
-      expect.stringMatching(/^product#/),
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*#.+/), // ISO date + # + uuid
     )
-    expect(responseBody).toHaveProperty("gsi_pk", "all")
     expect(responseBody).toHaveProperty("name", "Test Product")
     expect(responseBody).toHaveProperty("price", 10)
     expect(responseBody).toHaveProperty("category", "electronics")
   })
 
-  it("should return 400 when category is missing", async () => {
+  it("should work even if category is missing", async () => {
+    ddbMock.on(PutCommand).resolves({})
+
     const event = {
       httpMethod: "POST",
       body: JSON.stringify({
         name: "No Category",
         price: 100,
-        description: "Oops",
       }),
     } as APIGatewayProxyEvent
 
     const result = await handler(event)
-    const responseBody = JSON.parse(result.body)
+    const body = JSON.parse(result.body)
 
-    expect(result.statusCode).toBe(400)
-    expect(responseBody).toEqual({
-      message: "Missing required field: category",
-    })
+    expect(result.statusCode).toBe(201)
+    expect(body).toHaveProperty("pk", "product")
+    expect(body).toHaveProperty("sk", expect.stringMatching(/^.+#.+$/))
+    expect(body).toHaveProperty("name", "No Category")
+    expect(body).toHaveProperty("price", 100)
+    expect(body).not.toHaveProperty("category")
   })
 
   it("should return 400 when request body is missing", async () => {
