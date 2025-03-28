@@ -18,11 +18,12 @@ export const handler = async (
   event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
   const tableName = process.env.FAKER_TABLE
+  const ddbEndpoint = process.env.LOCAL_DDB_ENDPOINT
 
   logger.info(
     {
       tableName,
-      ddbEndpoint: process.env.LOCAL_DDB_ENDPOINT,
+      ddbEndpoint,
     },
     "Configuration",
   )
@@ -78,7 +79,6 @@ export const handler = async (
       },
       "Invalid JSON body",
     )
-
     return {
       statusCode: 400,
       headers: { "Content-Type": "application/json" },
@@ -112,7 +112,6 @@ export const handler = async (
       },
       "DynamoDB put response",
     )
-
     return {
       statusCode: 201,
       headers: { "Content-Type": "application/json" },
@@ -127,7 +126,6 @@ export const handler = async (
       },
       "DynamoDB put error",
     )
-
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },

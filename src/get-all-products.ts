@@ -84,7 +84,6 @@ export const handler = async (
       },
       "DynamoDB scan response",
     )
-
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
@@ -101,7 +100,6 @@ export const handler = async (
       },
       "DynamoDB scan error",
     )
-
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
