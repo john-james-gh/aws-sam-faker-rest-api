@@ -46,16 +46,6 @@ export const handler = async (
     }
   }
 
-  logger.info(
-    {
-      path: event.path,
-      httpMethod: event.httpMethod,
-      headers: event.headers,
-      body: event.body,
-    },
-    "Received event",
-  )
-
   let parsedBody: Record<string, unknown>
   try {
     parsedBody = JSON.parse(event.body)
@@ -63,7 +53,6 @@ export const handler = async (
   } catch (err) {
     logger.error(
       {
-        body: event.body,
         message: err instanceof Error ? err.message : String(err),
       },
       "Invalid JSON body",
@@ -93,13 +82,7 @@ export const handler = async (
   try {
     await ddbDocClient.send(new PutCommand(params))
 
-    logger.info(
-      {
-        statusCode: 201,
-        itemId: id,
-      },
-      "DynamoDB PutCommand success",
-    )
+    logger.info("DynamoDB PutCommand success")
     return {
       statusCode: 201,
       headers: { "Content-Type": "application/json" },
@@ -108,8 +91,6 @@ export const handler = async (
   } catch (err) {
     logger.error(
       {
-        statusCode: 500,
-        body: item,
         message: err instanceof Error ? err.message : String(err),
       },
       "DynamoDB PutCommand error",

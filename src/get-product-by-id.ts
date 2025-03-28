@@ -68,7 +68,7 @@ export const handler = async (
       }
     }
 
-    logger.info({ product: data.Item }, "DynamoDB GetCommand success")
+    logger.info("DynamoDB GetCommand success")
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
@@ -77,7 +77,6 @@ export const handler = async (
   } catch (err) {
     logger.error(
       {
-        statusCode: 500,
         message: err instanceof Error ? err.message : String(err),
       },
       "DynamoDB GetCommand error",

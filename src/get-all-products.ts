@@ -65,14 +65,7 @@ export const handler = async (
       ? Buffer.from(JSON.stringify(data.LastEvaluatedKey)).toString("base64")
       : null
 
-    logger.info(
-      {
-        statusCode: 200,
-        itemCount: items.length,
-        nextTokenPresent: Boolean(nextToken),
-      },
-      "DynamoDB ScanCommand success",
-    )
+    logger.info("DynamoDB ScanCommand success")
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
@@ -84,7 +77,6 @@ export const handler = async (
   } catch (err) {
     logger.error(
       {
-        statusCode: 500,
         message: err instanceof Error ? err.message : String(err),
       },
       "DynamoDB ScanCommand error",
