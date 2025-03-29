@@ -1,11 +1,11 @@
 {
   "body": null,
   "resource": "/{proxy+}",
-  "path": "/products/all",
+  "path": "/products/by-id",
   "httpMethod": "GET",
   "isBase64Encoded": false,
   "queryStringParameters": {
-    "foo": "bar"
+    "id": "bar"
   },
   "multiValueQueryStringParameters": {
     "foo": ["bar"]

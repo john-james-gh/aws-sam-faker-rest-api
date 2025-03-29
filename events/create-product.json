@@ -1,7 +1,7 @@
 {
   "body": "{\"title\": \"Test Product\", \"price\": 100}",
   "resource": "/{proxy+}",
-  "path": "/products",
+  "path": "/products/create",
   "httpMethod": "POST",
   "isBase64Encoded": true,
   "queryStringParameters": {
