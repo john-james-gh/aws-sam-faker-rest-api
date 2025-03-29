@@ -24,14 +24,14 @@ describe("Logger Configuration", () => {
     process.env.NODE_ENV = "development"
     delete process.env.LOCAL_DDB_ENDPOINT
     // Import logger dynamically after setting the env variables.
-    const { logger } = require("../src/utils/logger")
+    const { logger } = require("../../src/utils/logger")
     expect(logger.level).not.toBe("silent")
   })
 
   it("should be silent when NODE_ENV is test", () => {
     process.env.NODE_ENV = "test"
     // Import logger dynamically after setting NODE_ENV.
-    const { logger } = require("../src/utils/logger")
+    const { logger } = require("../../src/utils/logger")
     expect(logger.level).toBe("silent")
   })
 
@@ -40,7 +40,7 @@ describe("Logger Configuration", () => {
 
     // Re-import logger now that env is set
     const prettySpy = require("pino-pretty")
-    const { logger } = require("../src/utils/logger")
+    const { logger } = require("../../src/utils/logger")
 
     expect(prettySpy).toHaveBeenCalledWith({
       colorize: true,
@@ -58,7 +58,7 @@ describe("Logger Configuration", () => {
     // 3. Re-evaluate the module after `jest.resetModules()` to get a fresh instance.
     // `import` is static and hoisted, so it would run before these changes take effect.
     const prettySpy = require("pino-pretty")
-    const { logger } = require("../src/utils/logger")
+    const { logger } = require("../../src/utils/logger")
 
     expect(prettySpy).not.toHaveBeenCalled()
     expect(logger).toBeDefined()

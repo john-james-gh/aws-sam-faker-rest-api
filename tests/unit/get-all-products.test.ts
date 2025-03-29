@@ -3,7 +3,7 @@ import { mockClient } from "aws-sdk-client-mock"
 import { describe, beforeEach, it, expect } from "@jest/globals"
 import type { APIGatewayProxyEvent } from "aws-lambda"
 
-import { handler } from "../src/get-all-products"
+import { handler } from "../../src/get-all-products"
 
 describe("Test GetAllProducts Function", () => {
   const ddbMock = mockClient(DynamoDBDocumentClient)

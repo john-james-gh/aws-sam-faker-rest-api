@@ -5,7 +5,7 @@ import {
   PutCommand,
   type PutCommandInput,
 } from "@aws-sdk/lib-dynamodb"
-import { randomUUID } from "crypto"
+import { randomUUID } from "node:crypto"
 import { logger } from "./utils/logger"
 
 const isLocal = Boolean(process.env.LOCAL_DDB_ENDPOINT)
