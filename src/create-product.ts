@@ -69,7 +69,7 @@ export const handler = async (
 
   const item = {
     pk: "product",
-    sk: id, // 🟢 updated: SK is now just the UUID
+    sk: id,
     createdAt: now,
     ...parsedBody,
   }
