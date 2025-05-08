@@ -14,8 +14,30 @@ Globals:
         LOCAL_DDB_ENDPOINT: ""
 
 Resources:
+
+  # Add this new resource
+  ApiGatewayCloudWatchLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+
+  # Add this new resource
+  ApiGatewayAccountConfig:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiGatewayCloudWatchLogsRole.Arn
+
   RestApi:
     Type: AWS::Serverless::Api
+    DependsOn: ApiGatewayAccountConfig
     Properties:
       StageName: Prod
       Auth:
