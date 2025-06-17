@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto"
 import { logger } from "./utils/logger"
 
 const isLocal = Boolean(process.env.LOCAL_DDB_ENDPOINT)
+// Initialize DynamoDB client, using local endpoint if specified
 const client = new DynamoDBClient({
   endpoint: isLocal ? process.env.LOCAL_DDB_ENDPOINT : undefined,
 })
@@ -28,6 +29,7 @@ export const handler = async (
     "Configuration",
   )
 
+  // Return 500 if table name is not set
   if (!tableName) {
     logger.error("Missing FAKER_TABLE environment variable")
     return {
@@ -37,6 +39,7 @@ export const handler = async (
     }
   }
 
+  // Return 400 if request body is missing
   if (!event.body) {
     logger.error("Missing request body")
     return {
@@ -48,9 +51,11 @@ export const handler = async (
 
   let parsedBody: Record<string, unknown>
   try {
+    // Attempt to parse the JSON body
     parsedBody = JSON.parse(event.body)
     logger.info("Parsed JSON body")
   } catch (err) {
+    // Return 400 if JSON is invalid
     logger.error(
       {
         error: err instanceof Error ? err.message : String(err),
@@ -64,14 +69,16 @@ export const handler = async (
     }
   }
 
+  // Generate a unique ID and timestamp for the new product
   const id = randomUUID()
   const now = new Date().toISOString()
 
+  // Construct the item to be inserted into DynamoDB
   const item = {
-    pk: "product",
-    sk: id,
-    createdAt: now,
-    ...parsedBody,
+    pk: "product", // Partition key
+    sk: id, // Sort key (unique product ID)
+    createdAt: now, // Creation timestamp
+    ...parsedBody, // Spread the rest of the product fields
   }
 
   const params: PutCommandInput = {
@@ -80,15 +87,18 @@ export const handler = async (
   }
 
   try {
+    // Attempt to insert the item into DynamoDB
     await ddbDocClient.send(new PutCommand(params))
 
     logger.info("DynamoDB PutCommand success")
+    // Return 201 with the created item
     return {
       statusCode: 201,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(item),
     }
   } catch (err) {
+    // Log and return 500 on DynamoDB error
     logger.error(
       {
         error: err instanceof Error ? err.message : String(err),

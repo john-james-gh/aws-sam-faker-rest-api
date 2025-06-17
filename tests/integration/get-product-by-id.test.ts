@@ -1,3 +1,4 @@
+// Integration Test Note: These tests require that the local Gateway API and DynamoDB are running.
 import { beforeAll, afterAll, describe, expect, test } from "@jest/globals"
 import request from "supertest"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
