@@ -2,25 +2,25 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: AWS SAM Faker REST API
 
+# Globals apply to all AWS::Serverless::Function resources
 Globals:
   Function:
-    Timeout: 3
-    Runtime: nodejs22.x
+    Timeout: 3 # Function timeout in seconds
+    Runtime: nodejs22.x # Node.js runtime version
     Architectures:
       - x86_64
     Environment:
       Variables:
-        FAKER_TABLE: !Ref ProductsDynamoDbTable
-        LOCAL_DDB_ENDPOINT: ""
+        FAKER_TABLE: !Ref ProductsDynamoDbTable # DynamoDB table name for Lambda functions
+        LOCAL_DDB_ENDPOINT: "" # Used for local development
 
 Resources:
-
-  # Add this new resource
+  # IAM Role for API Gateway to push logs to CloudWatch
   ApiGatewayCloudWatchLogsRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -29,50 +29,55 @@ Resources:
       ManagedPolicyArns:
         - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
 
-  # Add this new resource
+  # API Gateway account configuration to enable CloudWatch logging
   ApiGatewayAccountConfig:
     Type: AWS::ApiGateway::Account
     Properties:
       CloudWatchRoleArn: !GetAtt ApiGatewayCloudWatchLogsRole.Arn
 
+  # The main API Gateway REST API
   RestApi:
     Type: AWS::Serverless::Api
-    DependsOn: ApiGatewayAccountConfig
+    DependsOn: ApiGatewayAccountConfig # Ensure logging is set up first
     Properties:
-      StageName: Prod
+      StageName: Prod # API Gateway stage name
       Auth:
-        ApiKeyRequired: true
+        ApiKeyRequired: true # Require API key for all methods
       AccessLogSetting:
-        DestinationArn: !GetAtt RestApiLogGroup.Arn
+        DestinationArn: !GetAtt RestApiLogGroup.Arn # Send access logs to CloudWatch
         Format: "$context.requestId - $context.identity.sourceIp - $context.httpMethod $context.resourcePath - $context.status"
       MethodSettings:
         - ResourcePath: "/*"
           HttpMethod: "*"
-          LoggingLevel: INFO
-          MetricsEnabled: true
+          LoggingLevel: INFO # Enable info-level logging
+          MetricsEnabled: true # Enable CloudWatch metrics
 
+  # CloudWatch Log Group for API Gateway access logs
   RestApiLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/apigateway/FakerRestApi-${RestApi}"
-      RetentionInDays: 7
+      RetentionInDays: 7 # Retain logs for 7 days
 
+  # API Gateway Usage Plan to control API access and throttling
   RestApiUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    DependsOn: RestApiProdStage
+    DependsOn: RestApiProdStage # Ensure the stage exists first
     Properties:
       ApiStages:
         - ApiId: !Ref RestApi
           Stage: Prod
       Throttle:
-        BurstLimit: 100
-        RateLimit: 50
+        BurstLimit: 100 # Max burst requests
+        RateLimit: 50 # Steady-state requests per second
 
+  # API Key for accessing the API
   RestApiKey:
     Type: AWS::ApiGateway::ApiKey
     Properties:
       Enabled: true
 
+  # Link the API Key to the Usage Plan
   RestUsagePlanKey:
     Type: AWS::ApiGateway::UsagePlanKey
     Properties:
@@ -80,13 +85,14 @@ Resources:
       KeyType: API_KEY
       UsagePlanId: !Ref RestApiUsagePlan
 
+  # Lambda function to get all products
   GetAllProductsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/get-all-products.handler
+      Handler: src/get-all-products.handler # Entry point for Lambda
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref ProductsDynamoDbTable
+            TableName: !Ref ProductsDynamoDbTable # Allow CRUD on the table
       Events:
         Api:
           Type: Api
@@ -95,8 +101,9 @@ Resources:
             Path: /products/all
             Method: GET
     Metadata:
-      BuildMethod: esbuild
+      BuildMethod: esbuild # Use esbuild for faster builds
 
+  # Lambda function to create a new product
   CreateProductFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -114,6 +121,7 @@ Resources:
     Metadata:
       BuildMethod: esbuild
 
+  # Lambda function to get a product by ID
   GetProductByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -131,15 +139,16 @@ Resources:
     Metadata:
       BuildMethod: esbuild
 
+  # DynamoDB table to store product data
   ProductsDynamoDbTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: FakerRestApi-ProductsDynamoDbTable-1KL76QRAUCEN
-      BillingMode: PAY_PER_REQUEST
+      BillingMode: PAY_PER_REQUEST # On-demand billing
       AttributeDefinitions:
-        - AttributeName: pk
+        - AttributeName: pk # Partition key
           AttributeType: S
-        - AttributeName: sk
+        - AttributeName: sk # Sort key
           AttributeType: S
       KeySchema:
         - AttributeName: pk

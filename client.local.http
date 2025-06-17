@@ -1,3 +1,9 @@
+# This file is intended for use with the VS Code REST Client extension:
+# https://marketplace.visualstudio.com/items?itemName=humao.rest-client
+# Install the extension and use the 'Send Request' action above each request block.
+#
+# The x-api-key value should be replaced with an API key created in the AWS console.
+
 ### ✅ Create product
 POST http://localhost:3000/products/create
 Content-Type: application/json

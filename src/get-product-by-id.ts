@@ -8,6 +8,7 @@ import {
 import { logger } from "./utils/logger"
 
 const isLocal = Boolean(process.env.LOCAL_DDB_ENDPOINT)
+// Initialize DynamoDB client, using local endpoint if specified
 const client = new DynamoDBClient({
   endpoint: isLocal ? process.env.LOCAL_DDB_ENDPOINT : undefined,
 })
@@ -27,6 +28,7 @@ export const handler = async (
     "Configuration",
   )
 
+  // Return 500 if table name is not set
   if (!tableName) {
     logger.error("Missing FAKER_TABLE environment variable")
     return {
@@ -36,9 +38,11 @@ export const handler = async (
     }
   }
 
+  // Parse query string parameters to get the product ID
   const queryParams = event.queryStringParameters || {}
   const productId = queryParams.id
 
+  // Return 400 if product ID is missing
   if (!productId) {
     logger.error("Missing query parameter: id")
     return {
@@ -48,17 +52,20 @@ export const handler = async (
     }
   }
 
+  // Prepare the DynamoDB GetCommand input
   const params: GetCommandInput = {
     TableName: tableName,
     Key: {
-      pk: "product",
-      sk: productId,
+      pk: "product", // Partition key
+      sk: productId, // Sort key (product ID)
     },
   }
 
   try {
+    // Attempt to get the product from DynamoDB
     const data = await ddbDocClient.send(new GetCommand(params))
 
+    // Return 404 if product is not found
     if (!data.Item) {
       logger.warn(`Product not found for sk: ${productId}`)
       return {
@@ -69,12 +76,14 @@ export const handler = async (
     }
 
     logger.info("DynamoDB GetCommand success")
+    // Return 200 with the retrieved product
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ product: data.Item }),
     }
   } catch (err) {
+    // Log and return 500 on DynamoDB error
     logger.error(
       {
         error: err instanceof Error ? err.message : String(err),

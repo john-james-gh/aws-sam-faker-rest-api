@@ -1,3 +1,4 @@
+// Integration Test Note: These tests require that the local Gateway API and DynamoDB are running.
 import { describe, expect, test } from "@jest/globals"
 import request from "supertest"
 
